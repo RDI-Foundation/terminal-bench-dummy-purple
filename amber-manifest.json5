@@ -1,45 +1,31 @@
 {
-  manifest_version: "0.1.0",
-
-  // TODO: Declare all config your agent needs from the deployer
-  // Use secret: true for sensitive values like API keys
-  config_schema: {
-    type: "object",
-    properties: {
-      my_api_key: { type: "string", secret: true },
-    },
-    required: ["my_api_key"],
-    additionalProperties: false,
-  },
-
-  // External services this agent uses
-  slots: {
-    proxy: { kind: "a2a", optional: true },
-  },
-
-  // Runtime configuration
+  manifest_version: "0.2.0",
   program: {
-    // TODO: Replace with your docker image
-    image: "ghcr.io/<your-username>/<your-repo-name>:latest",
-    entrypoint: "uv run python src/server.py --host 0.0.0.0 --port 9010",
-
-    // TODO: Pass config values as environment variables
+    image: "ghcr.io/rdi-foundation/terminal-bench-dummy-purple:latest",
+    entrypoint: "uv run --no-sync src/server.py --host 0.0.0.0 --port 9019",
     env: {
-      MY_API_KEY: "${config.my_api_key}",
+      PYTHONUNBUFFERED: "1",
+      // Amber outbound route to green's exec API.
+      EXEC_BASE_URL: "${slots.exec.url}",
     },
-
     network: {
       endpoints: [
-        { name: "a2a_endpoint", port: 9010 }, // ensure port matches your entrypoint
+        { name: "endpoint", port: 9019 },
       ],
     },
   },
-
-  // Capabilities provided by this agent
-  provides: {
-    a2a: { kind: "a2a", endpoint: "a2a_endpoint" },
+  config_schema: {
+    type: "object",
+    properties: {},
+    required: [],
+    additionalProperties: false,
   },
-
-  // Capabilities exposed to the scenario
+  slots: {
+    // Outbound route to green's exec API so purple can call it locally.
+    exec: { kind: "http", optional: true },
+  },
+  provides: {
+    a2a: { kind: "a2a", endpoint: "endpoint" },
+  },
   exports: { a2a: "a2a" },
 }
