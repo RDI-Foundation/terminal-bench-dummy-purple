@@ -16,8 +16,6 @@ class FakeUpdater:
     def __init__(self):
         self.statuses = []
         self.artifacts = []
-        self.requests = []
-        self.request_event = asyncio.Event()
 
     async def update_status(self, state, message):
         self.statuses.append((state, message))
@@ -25,20 +23,8 @@ class FakeUpdater:
     async def add_artifact(self, *, parts, name):
         self.artifacts.append((name, parts))
 
-    async def requires_input(self, message):
-        self.requests.append(message)
-        self.request_event.set()
 
-    def new_agent_message(self, *, parts):
-        return Message(
-            kind="message",
-            role=Role.agent,
-            parts=parts,
-            message_id="agent-msg",
-        )
-
-
-def make_message(text: str, *, context_id: str) -> Message:
+def make_message(text: str, *, context_id: str = "ctx-1") -> Message:
     return Message(
         kind="message",
         role=Role.user,
@@ -49,43 +35,51 @@ def make_message(text: str, *, context_id: str) -> Message:
 
 
 @pytest.mark.asyncio
-async def test_dummy_purple_requests_callback_and_finishes():
+async def test_task_message_returns_final():
     agent = Agent()
     updater = FakeUpdater()
 
-    run_task = asyncio.create_task(
-        agent.run(
-            make_message(
-                json.dumps({"kind": "task", "instruction": "solve"}),
-                context_id="ctx-1",
-            ),
-            updater,
-        )
+    await agent.run(
+        make_message(json.dumps({"kind": "task", "instruction": "solve"})),
+        updater,
     )
 
-    await asyncio.wait_for(updater.request_event.wait(), timeout=1)
-    assert json.loads(updater.requests[0].parts[0].root.text) == {
-        "kind": "exec_request",
-        "command": "pwd",
-        "timeout": 5,
-    }
+    assert len(updater.artifacts) == 1
+    result = json.loads(updater.artifacts[0][1][0].root.text)
+    assert result["kind"] == "final"
+
+
+@pytest.mark.asyncio
+async def test_exec_result_returns_final():
+    agent = Agent()
+    updater = FakeUpdater()
 
     await agent.run(
-        make_message(
-            json.dumps(
-                {
-                    "kind": "exec_result",
-                    "exit_code": 0,
-                    "stdout": "/workspace\n",
-                    "stderr": "",
-                }
-            ),
-            context_id="ctx-1",
-        ),
-        FakeUpdater(),
+        make_message(json.dumps({
+            "kind": "exec_result",
+            "exit_code": 0,
+            "stdout": "/workspace\n",
+            "stderr": "",
+        })),
+        updater,
     )
-    await run_task
 
-    result = json.loads(updater.artifacts[-1][1][0].root.text)
+    assert len(updater.artifacts) == 1
+    result = json.loads(updater.artifacts[0][1][0].root.text)
     assert result["kind"] == "final"
-    assert "exit_code=0" in result["output"]
+
+
+@pytest.mark.asyncio
+async def test_plain_text_returns_final():
+    agent = Agent()
+    updater = FakeUpdater()
+
+    await agent.run(
+        make_message("hello world"),
+        updater,
+    )
+
+    assert len(updater.artifacts) == 1
+    result = json.loads(updater.artifacts[0][1][0].root.text)
+    assert result["kind"] == "final"
+    assert result["output"] == "hello world"
