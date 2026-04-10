@@ -16,7 +16,7 @@ from executor import Executor
 def main():
     parser = argparse.ArgumentParser(description="Run the A2A agent.")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind the server")
-    parser.add_argument("--port", type=int, default=9009, help="Port to bind the server")
+    parser.add_argument("--port", type=int, default=9010, help="Port to bind the server")
     parser.add_argument("--card-url", type=str, help="URL to advertise in the agent card")
     args = parser.parse_args()
 
@@ -24,16 +24,16 @@ def main():
     # See: https://a2a-protocol.org/latest/tutorials/python/3-agent-skills-and-card/
     
     skill = AgentSkill(
-        id="",
-        name="",
-        description="",
-        tags=[],
-        examples=[]
+        id="terminal-bench-dummy",
+        name="Terminal Bench Dummy",
+        description="Dummy purple agent that responds to terminal-bench-shell-v1 protocol messages without executing commands.",
+        tags=["terminal-bench", "dummy"],
+        examples=[],
     )
 
     agent_card = AgentCard(
-        name="",
-        description="",
+        name="Terminal Bench Dummy Purple",
+        description="Dummy purple agent for terminal-bench evaluations. Responds immediately with a final message without executing any commands.",
         url=args.card_url or f"http://{args.host}:{args.port}/",
         version='1.0.0',
         default_input_modes=['text'],
